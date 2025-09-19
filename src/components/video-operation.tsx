@@ -70,7 +70,7 @@ export const VideoOperation: React.FC<VideoOperationProps> = ({
   return (
     <div className="space-y-6">
       {/* 文件选择区域 */}
-      <Card>
+      <Card className="py-3 gap-3">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Video className="h-5 w-5" />
@@ -105,7 +105,7 @@ export const VideoOperation: React.FC<VideoOperationProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="audio-format">音频格式</Label>
               <Select
@@ -132,7 +132,7 @@ export const VideoOperation: React.FC<VideoOperationProps> = ({
                 disabled={isProcessing}
               />
             </div>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
 
