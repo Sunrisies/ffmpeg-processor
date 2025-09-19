@@ -3,6 +3,8 @@ import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { open } from '@tauri-apps/plugin-dialog'
 import { FileVideo, FolderOpen } from "lucide-react"
+import { handleSelectFile } from "@/utils/open"
+import { videoExtensions } from "@/types"
 
 interface FileSelectorProps {
   value: string
@@ -17,24 +19,24 @@ export const FileSelector: React.FC<FileSelectorProps> = ({
   placeholder = "选择文件",
   accept = ""
 }) => {
-  const handleSelectFile = async () => {
-    try {
-      const selected = await open({
-        filters: accept ? [{
-          name: "Video",
-          extensions: accept.split(",").map(ext => ext.trim().replace(".", ""))
-        }] : undefined,
-        multiple: false,
-        directory: false
-      })
+  // const handleSelectFile = async () => {
+  //   try {
+  //     const selected = await open({
+  //       filters: accept ? [{
+  //         name: "Video",
+  //         extensions: accept.split(",").map(ext => ext.trim().replace(".", ""))
+  //       }] : undefined,
+  //       multiple: false,
+  //       directory: false
+  //     })
 
-      if (selected) {
-        onChange(selected)
-      }
-    } catch (error) {
-      console.error("选择文件失败:", error)
-    }
-  }
+  //     if (selected) {
+  //       onChange(selected)
+  //     }
+  //   } catch (error) {
+  //     console.error("选择文件失败:", error)
+  //   }
+  // }
 
   return (
     <div className="flex items-center space-x-2">
@@ -48,7 +50,7 @@ export const FileSelector: React.FC<FileSelectorProps> = ({
         type="button"
         variant="outline"
         size="icon"
-        onClick={handleSelectFile}
+        onClick={() => handleSelectFile(videoExtensions, onChange)}
         className="shrink-0"
       >
         <FileVideo className="h-4 w-4" />

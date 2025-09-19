@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
-import { FileVideo, Clock, HardDrive } from "lucide-react"
+import { FileVideo, Clock, HardDrive, FolderOpen } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
+import { Button } from "./ui/button"
+import { Label } from "./ui/label"
+import { FileSelector, FolderSelector } from "./file-selector"
+import { handleSelectFile } from "@/utils/open"
+import { videoExtensions } from "@/types"
 
 interface VideoInfo {
   duration: number
@@ -11,13 +16,14 @@ interface VideoInfo {
   bitrate: number
 }
 
-export const VideoInfo: React.FC<{ filePath: string }> = ({ filePath }) => {
+export const VideoInfo: React.FC<{ filePath: string }> = ({ filePath: initialFilePath }) => {
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
+  const [inputFile, setInputFile] = useState("")
+  const [selectedFilePath, setSelectedFilePath] = useState(initialFilePath);
   useEffect(() => {
-    if (!filePath) {
+    if (!selectedFilePath) {
       setVideoInfo(null)
       return
     }
@@ -26,7 +32,7 @@ export const VideoInfo: React.FC<{ filePath: string }> = ({ filePath }) => {
       setLoading(true)
       setError(null)
       try {
-        const info = await invoke("get_video_info", { inputPath: filePath })
+        const info = await invoke("get_video_info", { inputPath: selectedFilePath })
         setVideoInfo(info as VideoInfo)
       } catch (err) {
         setError(`获取视频信息失败: ${err}`)
@@ -37,7 +43,7 @@ export const VideoInfo: React.FC<{ filePath: string }> = ({ filePath }) => {
     }
 
     fetchVideoInfo()
-  }, [filePath])
+  }, [selectedFilePath])
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 B"
@@ -58,7 +64,7 @@ export const VideoInfo: React.FC<{ filePath: string }> = ({ filePath }) => {
     return `${minutes}:${secs.toString().padStart(2, "0")}`
   }
 
-  if (!filePath) {
+  if (!selectedFilePath) {
     return (
       <Card>
         <CardHeader>
@@ -68,7 +74,14 @@ export const VideoInfo: React.FC<{ filePath: string }> = ({ filePath }) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">请先选择视频文件</p>
+          <div className="space-y-2">
+            <FileSelector
+              value={selectedFilePath}
+              onChange={setSelectedFilePath}
+              placeholder="选择视频文件..."
+              accept=".mp4,.avi,.mov,.mkv"
+            />
+          </div>
         </CardContent>
       </Card>
     )
@@ -127,17 +140,22 @@ export const VideoInfo: React.FC<{ filePath: string }> = ({ filePath }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileVideo className="h-5 w-5" />
-          视频信息
+        <CardTitle className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <FileVideo className="h-5 w-5" />
+            视频信息
+          </div>
+          <div>
+            <Button onChange={() => handleSelectFile(videoExtensions, setSelectedFilePath)}>重新选择</Button>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">文件名</span>
-            <span className="font-medium truncate max-w-xs" title={filePath}>
-              {filePath.split(/[\/]/).pop()}
+            <span className="font-medium truncate max-w-xs" title={selectedFilePath}>
+              {selectedFilePath.split(/[\/]/).pop()}
             </span>
           </div>
 

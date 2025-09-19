@@ -12,7 +12,7 @@ struct ProcessResult {
 }
 
 use crate::utils::slice_to_ts;
-use crate::utils::slice_video;
+use crate::utils::{get_video_info, slice_video};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -23,6 +23,7 @@ pub fn run() {
             extract_audio,
             slice_to_ts,
             slice_video,
+            get_video_info
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

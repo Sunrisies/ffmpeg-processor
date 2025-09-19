@@ -6,3 +6,12 @@ pub struct ProgressUpdate {
     pub message: String,
     pub task: Option<String>,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct VideoInfo {
+    pub duration: f64,
+    pub size: u64,
+    pub format: String,
+    pub resolution: String,
+    pub bitrate: u64,
+}

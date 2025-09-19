@@ -1,0 +1,1 @@
+export const videoExtensions = ["mp4", "avi", "mov", "mkv"]

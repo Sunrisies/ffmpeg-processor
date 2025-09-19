@@ -1,9 +1,12 @@
-use mp4::Mp4Reader;
+use mp4::{Mp4Reader, TrackType};
 use regex::Regex;
 use shared_child::SharedChild;
 use tauri::Emitter;
 
-use crate::{types::ProgressUpdate, ProcessResult};
+use crate::{
+    types::{ProgressUpdate, VideoInfo},
+    ProcessResult,
+};
 use std::{
     env,
     fs::File,
@@ -365,4 +368,125 @@ pub async fn slice_video(
     };
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn get_video_info(input_path: String) -> Result<VideoInfo, String> {
+    let file = File::open(&input_path).map_err(|e| format!("无法打开文件: {}", e))?;
+    let size = file.metadata().map_err(|e| e.to_string())?.len();
+    let reader = BufReader::new(file);
+
+    // 尝试解析 MP4 文件
+    let mp4 = Mp4Reader::read_header(reader, size).map_err(|e| {
+        // 如果不是 MP4 文件，使用 ffprobe 获取信息
+        get_video_info_with_ffprobe(&input_path);
+        format!("无法解析 MP4 文件: {}", e)
+    })?;
+
+    let duration = mp4.duration().as_secs_f64() as f64;
+
+    // 获取视频流信息
+    let (_, video_track) = mp4
+        .tracks()
+        .iter()
+        .find(|(_, t)| t.track_type().ok() == Some(TrackType::Video))
+        .ok_or("找不到视频轨道")?;
+
+    let width = video_track.width();
+    let height = video_track.height();
+
+    // 估算比特率 (文件大小 / 时长)
+    let bitrate = (size as f64 / duration) as u64;
+
+    Ok(VideoInfo {
+        duration,
+        size,
+        format: "mp4".to_string(),
+        resolution: format!("{}x{}", width, height),
+        bitrate,
+    })
+}
+
+fn get_video_info_with_ffprobe(input_path: &str) -> Result<VideoInfo, String> {
+    let ffmpeg_path = get_embedded_ffmpeg_path().map_err(|e| e.to_string())?;
+
+    // 使用 ffprobe 获取视频信息
+    let output = Command::new(ffmpeg_path)
+        .args(&[
+            "-i",
+            input_path,
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height,duration,codec_name",
+            "-show_entries",
+            "format=size,format_name,bit_rate",
+            "-of",
+            "json",
+        ])
+        .output()
+        .map_err(|e| format!("执行 ffprobe 失败: {}", e))?;
+
+    if !output.status.success() {
+        let error_msg = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("FFmpeg 错误: {}", error_msg));
+    }
+
+    let output_str = String::from_utf8_lossy(&output.stdout);
+
+    // 解析 JSON 输出
+    // 这里简化处理，实际应用中应使用 JSON 解析库
+    // 这里我们使用简单的字符串匹配来提取信息
+    let duration_re = Regex::new(r#""duration":"([^"]+)""#).unwrap();
+    let width_re = Regex::new(r#""width":(\d+)""#).unwrap();
+    let height_re = Regex::new(r#""height":(\d+)""#).unwrap();
+    let format_re = Regex::new(r#""format_name":"([^"]+)""#).unwrap();
+    let size_re = Regex::new(r#""size":(\d+)""#).unwrap();
+    let bitrate_re = Regex::new(r#""bit_rate":"(\d+)""#).unwrap();
+
+    let duration = duration_re
+        .captures(&output_str)
+        .and_then(|c| c.get(1))
+        .and_then(|m| m.as_str().parse::<f64>().ok())
+        .unwrap_or(0.0);
+
+    let width = width_re
+        .captures(&output_str)
+        .and_then(|c| c.get(1))
+        .and_then(|m| m.as_str().parse::<u32>().ok())
+        .unwrap_or(0);
+
+    let height = height_re
+        .captures(&output_str)
+        .and_then(|c| c.get(1))
+        .and_then(|m| m.as_str().parse::<u32>().ok())
+        .unwrap_or(0);
+
+    let format = format_re
+        .captures(&output_str)
+        .and_then(|c| c.get(1))
+        .map(|m| m.as_str().to_string())
+        .unwrap_or("unknown".to_string());
+
+    let size = size_re
+        .captures(&output_str)
+        .and_then(|c| c.get(1))
+        .and_then(|m| m.as_str().parse::<u64>().ok())
+        .unwrap_or(0);
+
+    let bitrate = bitrate_re
+        .captures(&output_str)
+        .and_then(|c| c.get(1))
+        .and_then(|m| m.as_str().parse::<u64>().ok())
+        .unwrap_or(0);
+
+    Ok(VideoInfo {
+        duration,
+        size,
+        format,
+        resolution: format!("{}x{}", width, height),
+        bitrate,
+    })
 }
